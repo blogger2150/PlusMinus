@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PlusMinus — Admin Console</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="mark">+<i>−</i></span>PlusMinus</a>
+  <nav><a href="index.html">Search</a><a class="active" href="admin.html">Admin</a></nav>
+</header>
+
+<main class="admin">
+  <div class="adminhead">
+    <div><span class="eyebrow">CONTROL CENTER</span><h1>Admin Console</h1>
+    <p>Review and control which websites can enter the PlusMinus index.</p></div>
+    <button id="addBtn" class="primary" type="button">+ Submit New Site</button>
+  </div>
+
+  <div class="stats">
+    <div><small>Pending</small><strong id="pendingCount">0</strong></div>
+    <div><small>Approved</small><strong id="approvedCount">0</strong></div>
+    <div><small>Rejected</small><strong id="rejectedCount">0</strong></div>
+  </div>
+
+  <div class="panel">
+    <div class="paneltop"><h2>Websites</h2>
+      <div class="filters" role="tablist">
+        <button class="filter active" data-filter="all" type="button">All</button>
+        <button class="filter" data-filter="pending" type="button">Pending</button>
+        <button class="filter" data-filter="approved" type="button">Approved</button>
+        <button class="filter" data-filter="rejected" type="button">Rejected</button>
+      </div>
+    </div>
+    <div id="sites"></div>
+  </div>
+</main>
+
+<!-- Add-site modal: hidden until the button is pressed -->
+<div id="modal" class="modal hidden" aria-hidden="true">
+  <div class="modalcard" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <button class="close" id="close" type="button" aria-label="Close">×</button>
+    <h2 id="addTitle">Submit New Site</h2>
+    <form id="siteForm">
+      <label>Website name<input id="name" required placeholder="Example News"></label>
+      <label>Domain<input id="domain" required placeholder="example.com"></label>
+      <label>Category<select id="category">
+        <option>General</option><option>Technology</option><option>News</option><option>Science</option><option>India</option>
+      </select></label>
+      <button class="primary wide" type="submit">Submit for Review</button>
+    </form>
+  </div>
+</div>
+
+<!-- Reject modal -->
+<div id="rejectModal" class="modal hidden" aria-hidden="true">
+  <div class="modalcard" role="dialog" aria-modal="true" aria-labelledby="rejectTitle">
+    <button class="close" id="rejectClose" type="button" aria-label="Close">×</button>
+    <h2 id="rejectTitle">Reject Website</h2>
+    <p class="muted">Give a clear reason so the owner knows what to improve.</p>
+    <textarea id="rejectReason" rows="5" placeholder="Example: Thin content, broken links, incomplete About/Contact information..."></textarea>
+    <div class="modalactions">
+      <button id="rejectCancel" class="secondary" type="button">Cancel</button>
+      <button id="rejectConfirm" class="danger" type="button">Reject Website</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
