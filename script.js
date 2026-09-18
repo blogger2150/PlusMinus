@@ -22,23 +22,74 @@ function getDeviceType(){
   return "Desktop";
 }
 
+function getDeviceManufacturer(){
+  const ua=navigator.userAgent||"";
+
+  if(/samsung/i.test(ua))return "Samsung";
+  if(/xiaomi|redmi|mi /i.test(ua))return "Xiaomi";
+  if(/oneplus/i.test(ua))return "OnePlus";
+  if(/oppo/i.test(ua))return "OPPO";
+  if(/realme/i.test(ua))return "realme";
+  if(/vivo/i.test(ua))return "vivo";
+  if(/pixel/i.test(ua))return "Google";
+  if(/huawei/i.test(ua))return "Huawei";
+  if(/motorola|moto /i.test(ua))return "Motorola";
+  if(/nothing/i.test(ua))return "Nothing";
+  if(/iphone|ipad|ipod/i.test(ua))return "Apple";
+
+  return "Unknown";
+}
+
+function getDeviceModel(){
+  const ua=navigator.userAgent||"";
+
+  if(/iPhone/i.test(ua))return "iPhone";
+  if(/iPad/i.test(ua))return "iPad";
+
+  const androidMatch=ua.match(
+    /Android[^;)]*;\s*(?:[a-z]{2}-[A-Z]{2};\s*)?([^;)]+?)(?:\s+Build[\/;]|[;)])/i
+  );
+
+  if(androidMatch){
+    const model=androidMatch[1].trim();
+
+    if(
+      model &&
+      !/wv|mobile|build|linux|android/i.test(model)
+    ){
+      return model;
+    }
+  }
+
+  if(/Android/i.test(ua))return "Android device";
+  if(/Windows/i.test(ua))return "Windows PC";
+  if(/Macintosh/i.test(ua))return "Mac";
+  if(/Linux/i.test(ua))return "Linux PC";
+
+  return "Unknown";
+}
+
 function getBrowser(){
   const ua=navigator.userAgent||"";
+
   if(/edg/i.test(ua))return "Edge";
   if(/opr|opera/i.test(ua))return "Opera";
   if(/chrome|crios/i.test(ua)&&!/edg/i.test(ua))return "Chrome";
   if(/firefox|fxios/i.test(ua))return "Firefox";
   if(/safari/i.test(ua)&&!/chrome|crios/i.test(ua))return "Safari";
+
   return "Other";
 }
 
 function getOS(){
   const ua=navigator.userAgent||"";
+
   if(/android/i.test(ua))return "Android";
   if(/iphone|ipad|ipod/i.test(ua))return "iOS";
   if(/windows/i.test(ua))return "Windows";
   if(/mac os/i.test(ua))return "macOS";
   if(/linux/i.test(ua))return "Linux";
+
   return "Other";
 }
 
@@ -50,6 +101,8 @@ async function logSearch(query,resultType="web"){
     await pmSupabase.from("search_logs").insert({
       query:clean,
       device_type:getDeviceType(),
+      device_manufacturer:getDeviceManufacturer(),
+      device_model:getDeviceModel(),
       browser:getBrowser(),
       operating_system:getOS(),
       result_type:resultType,
@@ -196,7 +249,7 @@ function search(q){
   document.getElementById("results").classList.remove("hidden");
   document.getElementById("rq").value=q;
 
-  // Log immediately without making the user wait.
+  // Analytics never blocks the search.
   logSearch(q,currentTab==="all"?"web":currentTab);
 
   render(q);
@@ -236,6 +289,7 @@ document.querySelectorAll(".tab").forEach(b=>
 
 document.addEventListener("click",e=>{
   const link=e.target.closest("[data-result-click='true']");
+
   if(link){
     logResultClick();
   }
