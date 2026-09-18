@@ -1,189 +1,55 @@
-const STORAGE_KEY = "pm_sites_v3";
-const LEGACY_KEYS = ["pm_sites_v2","pm_sites_v1"];
-
-const defaultSites = [
-  { id: crypto.randomUUID(), name: "PlusMinus Example", domain: "plusminus.example", category: "Technology", status: "pending", reason: "" },
-  { id: crypto.randomUUID(), name: "Sample News", domain: "sample-news.example", category: "News", status: "rejected", reason: "Incomplete website information" }
-];
-
-const els = {
-  sites: document.getElementById("sites"),
-  pending: document.getElementById("pendingCount"),
-  approved: document.getElementById("approvedCount"),
-  rejected: document.getElementById("rejectedCount"),
-  add: document.getElementById("addBtn"),
-  modal: document.getElementById("modal"),
-  close: document.getElementById("close"),
-  form: document.getElementById("siteForm"),
-  name: document.getElementById("name"),
-  domain: document.getElementById("domain"),
-  category: document.getElementById("category")
+let sites=[];let filter="all";
+const $=id=>document.getElementById(id);
+const els={
+  login:$('login'),app:$('app'),loginForm:$('loginForm'),email:$('loginEmail'),password:$('loginPassword'),loginError:$('loginError'),logout:$('logout'),
+  sites:$('sites'),pending:$('pendingCount'),approved:$('approvedCount'),rejected:$('rejectedCount'),add:$('addBtn'),modal:$('modal'),close:$('close'),form:$('siteForm'),url:$('url'),name:$('name'),preview:$('preview'),previewTitle:$('previewTitle'),previewDesc:$('previewDesc'),submit:$('submitSite'),error:$('formError')
 };
-
-function normalizeSites(list) {
-  return (Array.isArray(list) ? list : []).map((site, i) => ({
-    id: site.id || `${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
-    name: String(site.name || "").trim(),
-    domain: String(site.domain || "").trim(),
-    category: String(site.category || "General"),
-    status: ["pending","approved","rejected"].includes(String(site.status).toLowerCase())
-      ? String(site.status).toLowerCase() : "pending",
-    reason: String(site.reason || "")
-  })).filter(site => site.name || site.domain);
+function esc(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]))}
+function statusCounts(){const c={pending:0,approved:0,rejected:0};sites.forEach(s=>{if(c[s.status]!==undefined)c[s.status]++});return c}
+function render(){
+  const c=statusCounts();els.pending.textContent=c.pending;els.approved.textContent=c.approved;els.rejected.textContent=c.rejected;
+  const visible=sites.filter(s=>filter==="all"||s.status===filter);
+  els.sites.innerHTML=visible.length?visible.map(s=>`<div class="site"><div class="siteinfo"><h3>${esc(s.title||s.name||s.domain)} <span class="badge">${esc(s.status)}</span></h3><p><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.domain)}</a>${s.description?` · ${esc(s.description)}`:""}${s.rejection_reason?` · <strong>Reason:</strong> ${esc(s.rejection_reason)}`:""}</p></div><div class="actions">${s.status!=="approved"?`<button type="button" data-action="approve" data-id="${esc(s.id)}">Approve</button>`:""}${s.status!=="rejected"?`<button type="button" data-action="reject" data-id="${esc(s.id)}">Disapprove</button>`:""}${s.status!=="pending"?`<button type="button" data-action="pending" data-id="${esc(s.id)}">Re-review</button>`:""}</div></div>`).join(""):"<div class='empty'>No websites in this view.</div>";
 }
-
-function loadSites() {
-  try {
-    const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (Array.isArray(current)) return normalizeSites(current);
-
-    for (const key of LEGACY_KEYS) {
-      const legacy = JSON.parse(localStorage.getItem(key) || "null");
-      if (Array.isArray(legacy)) return normalizeSites(legacy);
-    }
-  } catch (e) {}
-  return [];
+async function load(){
+  const {data,error}=await pmSupabase.from("sites").select("*").order("created_at",{ascending:false});
+  if(error){throw error} sites=data||[];render();
 }
-
-let sites = loadSites();
-localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
-let filter = "all";
-
-function save() {
-  sites = normalizeSites(sites);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
+async function setStatus(id,status,reason=null){
+  const payload={status,rejection_reason:status==="rejected"?reason:null,updated_at:new Date().toISOString()};
+  const {error}=await pmSupabase.from("sites").update(payload).eq("id",id);
+  if(error)throw error;await load();
 }
-
-function render() {
-  const counts = { pending: 0, approved: 0, rejected: 0 };
-  sites.forEach(site => counts[site.status]++);
-
-  els.pending.textContent = counts.pending;
-  els.approved.textContent = counts.approved;
-  els.rejected.textContent = counts.rejected;
-
-  const visible = sites.filter(site => filter === "all" || site.status === filter);
-  els.sites.innerHTML = visible.length
-    ? visible.map(site => {
-        const index = sites.indexOf(site);
-        return `<div class="site">
-          <div class="siteinfo">
-            <h3>${escapeHtml(site.name)} <span class="badge">${escapeHtml(site.status)}</span></h3>
-            <p>${escapeHtml(site.domain)} · ${escapeHtml(site.category)}${site.reason ? " · " + escapeHtml(site.reason) : ""}</p>
-          </div>
-          <div class="actions">
-            ${site.status !== "approved" ? `<button class="approve" data-action="approve" data-index="${index}">Approve</button>` : ""}
-            ${site.status !== "rejected" ? `<button data-action="reject" data-index="${index}">Reject</button>` : ""}
-            ${site.status !== "pending" ? `<button data-action="pending" data-index="${index}">Re-review</button>` : ""}
-          </div>
-        </div>`;
-      }).join("")
-    : `<div class="empty">No websites in this view.</div>`;
+async function reject(id){
+  const r=prompt("Reason for disapproval:","Does not meet current quality requirements");
+  if(r===null)return;await setStatus(id,"rejected",r.trim()||"Does not meet current quality requirements");
 }
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>'"]/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
-  }[char]));
+function openModal(){els.modal.classList.remove("hidden");document.body.classList.add("modal-open");els.error.textContent="";setTimeout(()=>els.url.focus(),0)}
+function closeModal(){els.modal.classList.add("hidden");document.body.classList.remove("modal-open")}
+async function login(e){
+  e.preventDefault();els.loginError.textContent="";
+  const {error}=await pmSupabase.auth.signInWithPassword({email:els.email.value.trim(),password:els.password.value});
+  if(error){els.loginError.textContent=error.message;return} await showApp();
 }
-
-function setStatus(index, status) {
-  if (!sites[index]) return;
-  sites[index].status = status;
-  if (status !== "rejected") sites[index].reason = "";
-  save();
-  render();
+async function showApp(){const {data:{session}}=await pmSupabase.auth.getSession();if(session){els.login.classList.add("hidden");els.app.classList.remove("hidden");try{await load()}catch(e){els.loginError.textContent=e.message}}else{els.login.classList.remove("hidden");els.app.classList.add("hidden")}}
+async function submitSite(e){
+  e.preventDefault();els.error.textContent="";els.submit.disabled=true;els.submit.textContent="Reading article…";
+  try{
+    const url=els.url.value.trim();
+    const meta=await pmMeta.fetchMeta(url);
+    const title=meta.title||url;const description=meta.description||"";
+    const name=els.name.value.trim()||title;
+    const keywords=pmMeta.tokenize(`${title} ${description}`);
+    const {error}=await pmSupabase.from("sites").insert({name,url:meta.url||url,domain:meta.domain||pmMeta.getDomain(url),title,description,keywords,status:"pending"});
+    if(error)throw error;
+    els.form.reset();els.preview.classList.add("hidden");closeModal();await load();
+  }catch(e){els.error.textContent=e.message||"Could not submit this article"}
+  finally{els.submit.disabled=false;els.submit.textContent="Submit for Review"}
 }
-
-function rejectSite(index) {
-  const reason = window.prompt(
-    "Reason for rejection (e.g. thin content, broken links, incomplete pages):",
-    "Incomplete website information"
-  );
-  if (reason === null) return;
-  sites[index].status = "rejected";
-  sites[index].reason = reason.trim() || "Does not meet current quality requirements";
-  save();
-  render();
-}
-
-function openModal() {
-  els.modal.classList.remove("hidden");
-  document.body.classList.add("modal-open");
-  window.setTimeout(() => els.name.focus(), 0);
-}
-
-function closeModal() {
-  els.modal.classList.add("hidden");
-  document.body.classList.remove("modal-open");
-}
-
-els.add.addEventListener("click", openModal);
-els.close.addEventListener("click", closeModal);
-
-// Close by tapping the backdrop, but never when tapping inside the card.
-els.modal.addEventListener("click", event => {
-  if (event.target === els.modal) closeModal();
-});
-
-// Mobile-friendly keyboard escape.
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && !els.modal.classList.contains("hidden")) closeModal();
-});
-
-document.querySelectorAll(".filter").forEach(button => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".filter").forEach(item => item.classList.remove("active"));
-    button.classList.add("active");
-    filter = button.dataset.filter;
-    render();
-  });
-});
-
-function findSiteIndex(id) {
-  return sites.findIndex(site => String(site.id) === String(id));
-}
-
-function approveSite(id) {
-  const index = findSiteIndex(id);
-  if (index < 0) return;
-  sites[index].status = "approved";
-  sites[index].reason = "";
-  save();
-  render();
-}
-
-els.sites.addEventListener("click", event => {
-  const button = event.target.closest("button[data-action]");
-  if (!button) return;
-  event.preventDefault();
-  event.stopPropagation();
-  const id = button.dataset.id;
-  const action = button.dataset.action;
-  if (action === "approve") approveSite(id);
-  else if (action === "reject") rejectSite(findSiteIndex(id));
-  else if (action === "pending") setStatus(findSiteIndex(id), "pending");
-});
-
-els.form.addEventListener("submit", event => {
-  event.preventDefault();
-  const domain = els.domain.value.trim().replace(/^https?:\/\//i, "").replace(/\/$/, "");
-  sites.unshift({
-    name: els.name.value.trim(),
-    domain,
-    category: els.category.value,
-    status: "pending"
-  });
-  save();
-  els.form.reset();
-  closeModal();
-  render();
-});
-
-render();
-
-window.addEventListener("storage", (event) => {
-  if (event.key === STORAGE_KEY && event.newValue) {
-    try { sites = normalizeSites(JSON.parse(event.newValue)); render(); } catch (e) {}
-  }
-});
+async function previewUrl(){const url=els.url.value.trim();if(!url)return;els.preview.classList.remove("hidden");els.previewTitle.textContent="Reading title…";els.previewDesc.textContent="";try{const m=await pmMeta.fetchMeta(url);els.previewTitle.textContent=m.title||"No title found";els.previewDesc.textContent=m.description||"No description found"}catch(e){els.previewTitle.textContent="Could not read URL";els.previewDesc.textContent=e.message}}
+els.loginForm.addEventListener("submit",login);els.logout.addEventListener("click",async()=>{await pmSupabase.auth.signOut();showApp()});
+els.add.addEventListener("click",openModal);els.close.addEventListener("click",closeModal);els.modal.addEventListener("click",e=>{if(e.target===els.modal)closeModal()});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+els.form.addEventListener("submit",submitSite);els.url.addEventListener("blur",previewUrl);
+document.querySelectorAll(".filter").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));b.classList.add("active");filter=b.dataset.filter;render()}));
+els.sites.addEventListener("click",async e=>{const b=e.target.closest("button[data-action]");if(!b)return;e.preventDefault();b.disabled=true;try{if(b.dataset.action==="approve")await setStatus(b.dataset.id,"approved");else if(b.dataset.action==="reject")await reject(b.dataset.id);else await setStatus(b.dataset.id,"pending")}catch(err){alert(err.message||"Database update failed")}finally{b.disabled=false}});
+pmSupabase.auth.onAuthStateChange(()=>showApp());showApp();

@@ -1,18 +1,33 @@
-# PlusMinus Admin V3 — clean prototype
+# PlusMinus — Supabase indexing build
 
-This version keeps the public search page separate from Admin.
+This build replaces the browser-only `localStorage` site list with Supabase.
 
-- Public homepage has no Admin link.
-- Search tabs are clickable.
-- Admin is available directly at `/admin.html`.
-- Admin starts on the dashboard; the submit modal is closed initially.
-- Add Website opens/closes correctly, including X, backdrop, and Escape.
-- Pending / Approved / Rejected filters work.
-- Approve / Reject / Re-review work.
-- Approved websites are read by the public search from the same browser localStorage key: `pm_sites_v2`.
-- This is still a browser-local prototype; Supabase should replace localStorage for shared data.
+## 1. Create the database
+In Supabase SQL Editor, paste and run **supabase.sql**.
 
-Do not expose `/admin.html` as a public navigation item. Proper Supabase Auth/RLS should be added before production admin use.
+The table is `public.sites`. RLS allows:
+- public users: read approved records only
+- signed-in admins: read/insert/update/delete records
 
-\n## Approval sync fix (V3.1)
-Admin and public search now use `pm_sites_v3`. Existing `pm_sites_v2`/`pm_sites_v1` data is migrated automatically. The dummy approved sample was removed from the Admin data so the Approved count reflects actual approved submissions. Status values are normalized and the public search accepts approved status case-insensitively.
+The browser uses the Supabase **publishable** key. Supabase documents that publishable keys are intended for browser apps when RLS is enabled; secret/service-role keys must remain server-side.
+
+## 2. Create the admin account
+In Supabase Dashboard → Authentication → Users, create the email/password user you want to use for the PlusMinus Admin Console.
+
+Then open `/admin.html` and sign in with that account.
+
+## 3. Deploy
+Upload these project files to GitHub and let Vercel deploy them. The `/api/fetch-meta.js` serverless route is used to read article metadata without depending on browser CORS.
+
+## What this version does
+- Add an article URL from Admin.
+- Server fetches the article's title and description.
+- Keywords are automatically extracted from title + description.
+- New records start as `pending`.
+- Approve, Disapprove (with reason), and Re-review update Supabase.
+- Public All-search reads only approved records.
+- Search relevance is calculated from title, description, keywords, domain and phrase matches.
+- `admin_priority` is already included in the ranking calculation for future manual ranking controls.
+
+## Important
+Do not add a Supabase secret/service-role key to the frontend or GitHub.
