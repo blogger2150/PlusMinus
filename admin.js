@@ -36,8 +36,12 @@ async function submitSite(e){
   e.preventDefault();els.error.textContent="";els.submit.disabled=true;els.submit.textContent="Reading article…";
   try{
     const url=els.url.value.trim();
-    const meta=await pmMeta.fetchMeta(url);
-    const title=meta.title||url;const description=meta.description||"";
+    let meta;
+    try{meta=await pmMeta.fetchMeta(url)}catch(metaError){
+      meta={url,domain:pmMeta.getDomain(url),title:"",description:"",fallback:true,error:metaError.message};
+    }
+    const title=meta.title||els.name.value.trim()||meta.domain||url;
+    const description=meta.description||"";
     const name=els.name.value.trim()||title;
     const keywords=pmMeta.tokenize(`${title} ${description}`);
     const {error}=await pmSupabase.from("sites").insert({name,url:meta.url||url,domain:meta.domain||pmMeta.getDomain(url),title,description,keywords,status:"pending"});
@@ -46,7 +50,7 @@ async function submitSite(e){
   }catch(e){els.error.textContent=e.message||"Could not submit this article"}
   finally{els.submit.disabled=false;els.submit.textContent="Submit for Review"}
 }
-async function previewUrl(){const url=els.url.value.trim();if(!url)return;els.preview.classList.remove("hidden");els.previewTitle.textContent="Reading title…";els.previewDesc.textContent="";try{const m=await pmMeta.fetchMeta(url);els.previewTitle.textContent=m.title||"No title found";els.previewDesc.textContent=m.description||"No description found"}catch(e){els.previewTitle.textContent="Could not read URL";els.previewDesc.textContent=e.message}}
+async function previewUrl(){const url=els.url.value.trim();if(!url)return;els.preview.classList.remove("hidden");els.previewTitle.textContent="Reading title…";els.previewDesc.textContent="";try{const m=await pmMeta.fetchMeta(url);els.previewTitle.textContent=m.title||m.domain||"No title found";els.previewDesc.textContent=m.description||"No description found";if(m.fallback)els.previewDesc.textContent+=" · Metadata could not be read; the URL can still be submitted for review."}catch(e){els.previewTitle.textContent="Could not read URL";els.previewDesc.textContent=e.message+" · You can still submit the URL for review."}}
 els.loginForm.addEventListener("submit",login);els.logout.addEventListener("click",async()=>{await pmSupabase.auth.signOut();showApp()});
 els.add.addEventListener("click",openModal);els.close.addEventListener("click",closeModal);els.modal.addEventListener("click",e=>{if(e.target===els.modal)closeModal()});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 els.form.addEventListener("submit",submitSite);els.url.addEventListener("blur",previewUrl);

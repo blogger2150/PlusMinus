@@ -6,8 +6,9 @@ function tokenize(text){
 }
 async function fetchMeta(url){
   const r=await fetch(`/api/fetch-meta?url=${encodeURIComponent(url)}`);
-  const data=await r.json();
-  if(!r.ok) throw new Error(data.error||"Could not read article metadata");
+  let data={};
+  try{data=await r.json()}catch(e){}
+  if(!r.ok && !data.fallback){throw new Error(data.error||`Could not read article metadata (${r.status})`)}
   return data;
 }
 window.pmMeta={cleanText,getDomain,tokenize,fetchMeta};

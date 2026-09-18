@@ -3,7 +3,7 @@
 html,body{height:auto;overscroll-behavior-y:auto}
 body.modal-open{overflow:hidden}
 .admin{min-height:calc(100vh - 70px);padding-bottom:60px}
-.modal{z-index:1000;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.modal{z-index:1000;overflow-y:auto;-webkit-overflow-scrolling:touch}.modal.hidden{display:none}
 .modalcard{margin:auto;max-height:calc(100vh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch}
 .close{touch-action:manipulation;-webkit-tap-highlight-color:transparent;z-index:2}
 @media(max-width:650px){
